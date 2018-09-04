@@ -10,11 +10,14 @@ discord_client = discord.Client()
 
 matrix_room = matrix_client.join_room(matrix_room_id)
 
+matrix_file_types = ('m.file', 'm.image', 'm.video', 'm.audio')
+
 @discord_client.event
 async def on_message(message):
 	if message.author.discriminator == "0000": return
 	username = message.author.display_name[:1] + "\u200B" + message.author.display_name[1:]
-	matrix_room.send_text("<{}> {}".format(username, message.clean_content))
+	attachments = "\n".join([x.url for x in message.attachments])
+	matrix_room.send_text("<{}> {}".format(username, message.clean_content + ("\n" + attachments if attachments != "" else "")))
 
 def send_webhook(username, avatar_url, content):
 	data = {'username': username, 'content': content}
@@ -34,12 +37,17 @@ def prepare_discord_content(content):
 	return content
 
 def on_matrix_message(room, event):
-	if event['type'] == "m.room.message":
-		user = matrix_client.get_user(event['sender'])
-		if event['content']['msgtype'] == "m.text" and not user.user_id == matrix_user_id:
+	user = matrix_client.get_user(event['sender'])
+	if event['type'] == "m.room.message" and not user.user_id == matrix_user_id:
+		if event['content']['msgtype'] == "m.text":
 			username = "[Matrix] {}".format(user.get_display_name())
 			avatar = user.get_avatar_url()
 			content = prepare_discord_content(event['content']['body'])
+			send_webhook(username, avatar, content)
+		if event['content']['msgtype'] in matrix_file_types:
+			username = "[Matrix] {}".format(user.get_display_name())
+			avatar = user.get_avatar_url()
+			content = matrix_homeserver + "/_matrix/media/v1/download/" + event['content']['url'][6:]
 			send_webhook(username, avatar, content)
 
 matrix_room.add_listener(on_matrix_message)
