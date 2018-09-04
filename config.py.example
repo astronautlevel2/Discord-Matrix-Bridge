@@ -1,5 +1,6 @@
-matrix token = # should be a string
-discord_token = #should be a string
+matrix_username = # string representing just the user (no homeserver or @)
+matrix_password = # password to account
+discord_token = # should be a string
 
 discord_channel = # should be a snowflake int
 matrix_room_id = # should be a string in the format !ID:homeserver
@@ -8,3 +9,5 @@ matrix_homeserver = # should be a string
 matrix_user_id = # should be a string in the format @ID:homeserver
 
 webhook_url = # should be a discord webhook
+
+discord_prefix = # string representing the prefix before the username
