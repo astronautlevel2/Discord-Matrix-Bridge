@@ -1,0 +1,10 @@
+matrix token = # should be a string
+discord_token = #should be a string
+
+discord_channel = # should be a snowflake int
+matrix_room_id = # should be a string in the format !ID:homeserver
+matrix_homeserver = # should be a string
+
+matrix_user_id = # should be a string in the format @ID:homeserver
+
+webhook_url = # should be a discord webhook
