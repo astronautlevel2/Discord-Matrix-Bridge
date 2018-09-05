@@ -29,7 +29,7 @@ matrix_room = matrix_client.join_room(matrix_room_id)
 
 matrix_file_types = ('m.file', 'm.image', 'm.video', 'm.audio')
 
-def prepare_matrix_client(message):
+def prepare_matrix_content(message):
 	attachments = "\n".join([x.url for x in message.attachments])
 	content = message.clean_content + ("\n" + attachments if attachments != "" else "")
 	return content
@@ -38,7 +38,7 @@ def prepare_matrix_client(message):
 async def on_message(message):
 	if message.author.discriminator == "0000" or message.channel.id != discord_channel: return
 	username = message.author.name[:1] + "\u200B" + message.author.name[1:] + "#" + message.author.discriminator
-	content = prepare_matrix_client(message)
+	content = prepare_matrix_content(message)
 	matrix_room.send_text("<{}> {}".format(username, content))
 
 def send_webhook(username, avatar_url, content):
