@@ -34,6 +34,16 @@ def prepare_matrix_content(message):
 	content = message.clean_content + ("\n" + attachments if attachments != "" else "")
 	return content
 
+guild = None
+emojis = {}
+
+@discord_client.event
+async def on_ready():
+	global guild
+	global emojis
+	guild = discord_client.get_channel(discord_channel).guild
+	emojis = {":{}:".format(emoji.name): "<:{}:{}>".format(emoji.name, emoji.id) for emoji in guild.emojis}
+
 @discord_client.event
 async def on_message(message):
 	if message.author.discriminator == "0000" or message.channel.id != discord_channel: return
@@ -52,11 +62,13 @@ def prepare_discord_content(content):
 	content = content.replace("@here", "@\u200Bhere")
 	content = re.sub("</?del>", "~~", content)
 	mentions = re.findall("(^|\s)(@(\w*))", content)
-	guild = discord_client.get_channel(discord_channel).guild
 	for mention in mentions:
 		member = guild.get_member_named(mention[2])
 		if not member: continue
 		content = content.replace(mention[1], member.mention)
+	for emoji_name, emoji_id in emojis.items():
+		if emoji_name in content:
+			content = content.replace(emoji_name, emoji_id)
 	return content
 
 def on_matrix_message(room, event):
