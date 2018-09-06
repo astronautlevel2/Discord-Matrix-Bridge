@@ -51,6 +51,14 @@ async def on_message(message):
 	content = prepare_matrix_content(message)
 	matrix_room.send_text("<{}> {}".format(username, content))
 
+@discord_client.event
+async def on_message_edit(before, after):
+	if after.channel.id != discord_channel: return
+	after.attachments = []
+	username = after.author.name[:1] + "\u200B" + after.author.name[1:] + "#" + after.author.discriminator
+	content = prepare_matrix_content(after)
+	matrix_room.send_text("<{}> {} (edited)".format(username, content))
+
 def send_webhook(username, avatar_url, content):
 	data = {'username': username, 'content': content}
 	if avatar_url: data['avatar_url'] = avatar_url
