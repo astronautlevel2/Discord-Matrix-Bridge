@@ -15,8 +15,6 @@
 """
 
 from matrix_client.client import MatrixClient
-import requests
-import json
 import discord
 from discord import Webhook, RequestsWebhookAdapter
 import re
@@ -31,6 +29,9 @@ matrix_room = matrix_client.join_room(matrix_room_id)
 matrix_file_types = ('m.file', 'm.image', 'm.video', 'm.audio')
 
 message_id_cache = {}
+unmatched_messages_cache = {}
+
+message_delete_queue = []
 
 def prepare_matrix_content(message):
 	attachments = "\n".join([x.url for x in message.attachments])
@@ -38,6 +39,7 @@ def prepare_matrix_content(message):
 	return content
 
 guild = None
+channel = None
 emojis = {}
 webhook = None
 
@@ -46,12 +48,21 @@ async def on_ready():
 	global guild
 	global emojis
 	global webhook
-	guild = discord_client.get_channel(discord_channel).guild
+	global channel
+	channel = discord_client.get_channel(discord_channel)
+	guild = channel.guild
 	emojis = {":{}:".format(emoji.name): "<:{}:{}>".format(emoji.name, emoji.id) for emoji in guild.emojis}
 	webhook = Webhook.from_url(webhook_url, adapter=RequestsWebhookAdapter())
 
 @discord_client.event
 async def on_message(message):
+	for message_id in message_delete_queue:
+		message_delete_queue.remove(message_id)
+		message = await channel.get_message(message_id)
+		await message.delete()
+	if message.author.name in unmatched_messages_cache.keys():
+		message_id_cache[unmatched_messages_cache[message.author.name]] = message.id
+		del unmatched_messages_cache[message.author.name]
 	if message.author.discriminator == "0000" or message.channel.id != discord_channel: return
 	username = message.author.name[:1] + "\u200B" + message.author.name[1:] + "#" + message.author.discriminator
 	content = prepare_matrix_content(message)
@@ -70,9 +81,11 @@ async def on_message_edit(before, after):
 
 @discord_client.event
 async def on_raw_message_delete(paylod):
-	matrix_room.redact_message(message_id_cache[paylod.message_id], reason="Message Deleted")
+	if payload.message_id in message_id_cache.keys():
+		matrix_room.redact_message(message_id_cache[paylod.message_id], reason="Message Deleted")
 
-def send_webhook(username, avatar_url, content):
+def send_webhook(username, avatar_url, content, matrix_id):
+	unmatched_messages_cache[username] = matrix_id;
 	webhook.send(content=content, username=username, avatar_url=avatar_url)
 
 def prepare_discord_content(content):
@@ -96,12 +109,14 @@ def on_matrix_message(room, event):
 			username = "{}{}".format(discord_prefix, user.get_display_name())
 			avatar = user.get_avatar_url()
 			content = prepare_discord_content(event['content']['body'])
-			message_id_cache[event['event_id']] = send_webhook(username, avatar, content)
+			send_webhook(username, avatar, content, event['event_id'])
 		if event['content']['msgtype'] in matrix_file_types:
 			username = "{}{}".format(discord_prefix, user.get_display_name())
 			avatar = user.get_avatar_url()
 			content = matrix_homeserver + "/_matrix/media/v1/download/" + event['content']['url'][6:]
-			message_id_cache[event['event_id']] = send_webhook(username, avatar, content)
+			send_webhook(username, avatar, content, event['event_id'])
+	if event['type'] == "m.room.redaction" and not user.user_id == matrix_user_id:
+		message_delete_queue.append(message_id_cache[event['redacts']])
 
 matrix_room.add_listener(on_matrix_message)
 matrix_client.start_listener_thread()
