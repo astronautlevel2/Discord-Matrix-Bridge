@@ -116,7 +116,10 @@ def on_matrix_message(room, event):
 			content = matrix_homeserver + "/_matrix/media/v1/download/" + event['content']['url'][6:]
 			send_webhook(username, avatar, content, event['event_id'])
 	if event['type'] == "m.room.redaction" and not user.user_id == matrix_user_id:
-		message_delete_queue.append(message_id_cache[event['redacts']])
+		try:
+			message_delete_queue.append(message_id_cache[event['redacts']])
+		except KeyError:
+			pass
 
 matrix_room.add_listener(on_matrix_message)
 matrix_client.start_listener_thread()
